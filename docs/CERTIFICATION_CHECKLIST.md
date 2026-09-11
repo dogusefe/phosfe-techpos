@@ -14,8 +14,8 @@ değildir; geliştirme ve kanıt toplama kontrolüdür.
 | Handshake | 0800/0810 akışı, parametre versiyonları ve host sinyalleri | Temel mesaj/parser hazır |
 | Otorizasyon | Başarılı/başarısız işlem, EMV, online PIN | Temel mesaj/parser ve güvenli gönderim kapısı hazır |
 | Advice / TC upload | Offline advice ve sertifika yükleme | Bekliyor |
-| Teknik iptal | Reversal saklama, tekrar deneme, idempotency | Şifreli kalıcı journal ve yeni işlem engeli hazır; gönderim worker'ı bekliyor |
-| Gün sonu | EOD, batch upload, belge ve sayaç yönetimi | Bekliyor |
+| Teknik iptal | Reversal saklama, tekrar deneme, idempotency | Şifreli journal, işlem engeli ve 0400/0410 dispatcher hazır |
+| Gün sonu | EOD, batch upload, belge ve sayaç yönetimi | 0500/0510, 0320/0330 ve mutabakat durum makinesi hazır; kalıcı ledger ve belgeler bekliyor |
 | Ek işlemler | DCC, Çiftçi Kart, puan, QR, taksit, iade, iptal | Bekliyor |
 | Fiş | Mali alanlar, maskeleme, dijital slip | Bekliyor |
 | Datecs adaptörü | EMV L2, PIN, güvenli anahtar, yazıcı | SDK entegrasyonu bekliyor |

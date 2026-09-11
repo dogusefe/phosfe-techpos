@@ -1,0 +1,166 @@
+package com.phosfe.bkmtechpos.settlement
+
+import com.phosfe.bkmtechpos.protocol.BkmTag
+import com.phosfe.bkmtechpos.protocol.BkmTlv
+import com.phosfe.bkmtechpos.protocol.IsoMessage
+import com.phosfe.bkmtechpos.protocol.PackedDecimal
+import com.phosfe.bkmtechpos.terminal.HostSignals
+import com.phosfe.bkmtechpos.terminal.StanSource
+import com.phosfe.bkmtechpos.terminal.TerminalClock
+import com.phosfe.bkmtechpos.terminal.TerminalProfile
+import java.io.ByteArrayOutputStream
+
+data class AmountAggregate(val count: Int, val amountMinor: Long) {
+    init {
+        require(count in 0..65_535)
+        require(amountMinor in 0..999_999_999_999)
+    }
+}
+
+data class CurrencySettlement(
+    val numericCode: String,
+    val onlinePositive: AmountAggregate,
+    val onlineNegative: AmountAggregate,
+    val offlinePositive: AmountAggregate,
+    val offlineNegative: AmountAggregate
+) {
+    init { require(numericCode.length == 3 && numericCode.all(Char::isDigit)) }
+}
+
+data class BatchSettlement(val batchNumber: Int, val currencies: List<CurrencySettlement>) {
+    init {
+        require(batchNumber in 1..999_999)
+        require(currencies.size in 0..10)
+        require(currencies.map { it.numericCode }.distinct().size == currencies.size)
+    }
+}
+
+object SettlementTotalsCodec {
+    fun encode(settlement: BatchSettlement): ByteArray = ByteArrayOutputStream().also { output ->
+        output.write(PackedDecimal.encode(settlement.batchNumber.toString().padStart(6, '0')))
+        output.write(settlement.currencies.size)
+        settlement.currencies.forEach { currency ->
+            output.write(currency.numericCode.toByteArray(Charsets.US_ASCII))
+            writeAggregate(output, currency.onlinePositive)
+            writeAggregate(output, currency.onlineNegative)
+            writeAggregate(output, currency.offlinePositive)
+            writeAggregate(output, currency.offlineNegative)
+        }
+    }.toByteArray()
+
+    private fun writeAggregate(output: ByteArrayOutputStream, aggregate: AmountAggregate) {
+        output.write(aggregate.count ushr 8)
+        output.write(aggregate.count and 0xFF)
+        val amount = PackedDecimal.encode(aggregate.amountMinor.toString())
+        require(amount.size <= 255)
+        output.write(amount.size)
+        output.write(amount)
+    }
+}
+
+enum class ReconciliationStep(val processingCode: String) {
+    PRIMARY("910000"),
+    AFTER_BATCH_UPLOAD("920000")
+}
+
+class SettlementRequestFactory(
+    private val profile: TerminalProfile,
+    private val stan: StanSource,
+    private val clock: TerminalClock
+) {
+    fun create(
+        step: ReconciliationStep,
+        totals: BatchSettlement,
+        terminalCapabilities: ByteArray? = null
+    ): IsoMessage {
+        require(terminalCapabilities == null || terminalCapabilities.size == 5)
+        val moment = clock.now()
+        val tags = mutableListOf(BkmTag(0x11, SettlementTotalsCodec.encode(totals)))
+        terminalCapabilities?.let { tags += BkmTag(0x23, it.copyOf()) }
+        return IsoMessage("0500", mapOf(
+            3 to step.processingCode.ascii(),
+            11 to stan.next().ascii(),
+            12 to moment.time.ascii(),
+            13 to moment.date.ascii(),
+            43 to profile.field43(),
+            63 to BkmTlv.encode(tags)
+        ))
+    }
+}
+
+sealed interface SettlementReply {
+    val referenceNumber: String
+    val signals: HostSignals
+    data class Settled(override val referenceNumber: String, override val signals: HostSignals) : SettlementReply
+    data class UploadRequired(override val referenceNumber: String, override val signals: HostSignals) : SettlementReply
+    data class Rejected(val responseCode: String, override val referenceNumber: String, override val signals: HostSignals) : SettlementReply
+}
+
+object SettlementResponseParser {
+    fun parse(request: IsoMessage, response: IsoMessage): SettlementReply {
+        require(request.messageType == "0500" && response.messageType == "0510")
+        require(response.text(3) == request.text(3)) { "Settlement processing code mismatch" }
+        require(response.text(11) == request.text(11)) { "Settlement STAN mismatch" }
+        val reference = response.text(37) ?: error("Settlement response has no F37")
+        val code = response.text(39) ?: error("Settlement response has no F39")
+        val signals = HostSignals.fromField48(response.fields[48])
+        return when (code) {
+            "00" -> SettlementReply.Settled(reference, signals)
+            "95" -> SettlementReply.UploadRequired(reference, signals)
+            else -> SettlementReply.Rejected(code, reference, signals)
+        }
+    }
+}
+
+data class ApprovedBatchTransaction(
+    val pan: String,
+    val authorizationRequest: IsoMessage,
+    val authorizationResponse: IsoMessage
+) {
+    init {
+        require(pan.length in 12..19 && pan.all(Char::isDigit))
+        require(authorizationRequest.messageType == "0100" || authorizationRequest.messageType == "0200")
+        require(authorizationResponse.messageType == if (authorizationRequest.messageType == "0100") "0110" else "0210")
+        require(authorizationResponse.text(39) == "00")
+    }
+}
+
+class BatchUploadRequestFactory(
+    private val stan: StanSource,
+    private val clock: TerminalClock
+) {
+    fun create(transaction: ApprovedBatchTransaction): IsoMessage {
+        val original = transaction.authorizationRequest
+        val reply = transaction.authorizationResponse
+        val moment = clock.now()
+        val fields = linkedMapOf<Int, ByteArray>()
+        fields[2] = transaction.pan.ascii()
+        fields[3] = original.required(3)
+        fields[4] = original.required(4)
+        fields[11] = stan.next().ascii()
+        fields[12] = moment.time.ascii()
+        fields[13] = moment.date.ascii()
+        original.fields[14]?.let { fields[14] = it.copyOf() }
+        listOf(22, 25, 41, 42, 43, 49, 63).forEach { fields[it] = original.required(it) }
+        original.fields[32]?.let { fields[32] = it.copyOf() }
+        fields[37] = reply.required(37)
+        reply.fields[38]?.let { fields[38] = it.copyOf() }
+        fields[39] = reply.required(39)
+        return IsoMessage("0320", fields)
+    }
+}
+
+object BatchUploadResponseParser {
+    fun requireApproved(request: IsoMessage, response: IsoMessage) {
+        require(request.messageType == "0320" && response.messageType == "0330")
+        require(response.text(3) == request.text(3)) { "Batch upload processing code mismatch" }
+        require(response.text(11) == request.text(11)) { "Batch upload STAN mismatch" }
+        require(response.text(39) == "00") { "Batch upload rejected with F39=${response.text(39)}" }
+    }
+}
+
+private fun IsoMessage.required(number: Int): ByteArray =
+    fields[number]?.copyOf() ?: error("Required F$number is missing")
+
+private fun String.ascii(): ByteArray = toByteArray(Charsets.US_ASCII)
+
