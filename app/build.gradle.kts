@@ -1,11 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 fun propertyOr(key: String, fallback: String): String =
     (project.findProperty(key) as? String)?.takeIf(String::isNotBlank) ?: fallback
+
+val signingFile = rootProject.file("keystore.properties")
+val signingProperties = Properties().apply {
+    if (signingFile.exists()) signingFile.inputStream().use(::load)
+}
+val hasReleaseSigning = signingProperties.getProperty("storeFile")
+    ?.let(rootProject::file)
+    ?.exists() == true
 
 android {
     namespace = "com.phosfe.bkmtechpos"
@@ -24,6 +35,20 @@ android {
         buildConfigField("String", "VENDOR_ID", "\"${propertyOr("VENDOR_ID", "00")}\"")
         buildConfigField("String", "PRODUCER_CODE", "\"${propertyOr("PRODUCER_CODE", "PHS")}\"")
         buildConfigField("String", "DEVICE_TYPE", "\"${propertyOr("DEVICE_TYPE", "POS")}\"")
+        buildConfigField("boolean", "DB_ENCRYPTED", "false")
+        buildConfigField("boolean", "HOST_WIRE_LOG", "false")
+        buildConfigField("boolean", "DB_TOOLS", "false")
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(signingProperties.getProperty("storeFile"))
+                storePassword = signingProperties.getProperty("storePassword")
+                keyAlias = signingProperties.getProperty("keyAlias")
+                keyPassword = signingProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     flavorDimensions += listOf("mode", "vendor")
@@ -54,11 +79,55 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("boolean", "HOST_WIRE_LOG", "true")
+            buildConfigField("boolean", "DB_TOOLS", "true")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            isDebuggable = false
+            buildConfigField("boolean", "DB_ENCRYPTED", "true")
+            buildConfigField("boolean", "HOST_WIRE_LOG", "false")
+            buildConfigField("boolean", "DB_TOOLS", "false")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+        create("demo") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            matchingFallbacks += listOf("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
+    }
+
+    applicationVariants.all {
+        val modeCode = when (productFlavors.firstOrNull { it.dimension == "mode" }?.name) {
+            "standalone" -> "STD"
+            "ecr" -> "ECR"
+            else -> "UNK"
+        }
+        val vendorCode = when (productFlavors.firstOrNull { it.dimension == "vendor" }?.name) {
+            "datecs" -> "DTS"
+            "newland" -> "NWL"
+            "simulator" -> "SIM"
+            else -> "UNK"
+        }
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+                "PhosfeTechPOS-$modeCode-$vendorCode-${buildType.name}-v$versionName.apk"
         }
     }
 
@@ -83,7 +152,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.sqlcipher.android)
+    ksp(libs.androidx.room.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }
 
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
