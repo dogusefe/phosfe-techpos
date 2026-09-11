@@ -13,7 +13,7 @@ taşır ve ortak ödeme katmanı sertifikasyon sonrası donanım değişiklikler
 ## Katman sınırları
 
 - `domain`: Üreticiden ve Android SDK'sından bağımsız ödeme kavramları.
-- `protocol`: ISO 8583 BCD/bitmap/alan kodlaması ve BER-TLV altyapısı.
+- `protocol`: ISO 8583 BCD/bitmap/alan kodlaması, EMV BER-TLV ve ayrı BKM F48/F63 TLV altyapısı.
 - `hardware`: Kart, PIN, güvenli anahtar ve yazıcı portları.
 - `src/<vendor>`: Üretici SDK adaptörleri. Ortak katmana ters bağımlılık kurulamaz.
 - `ui`: Büyük dokunma hedefli Material 3 terminal arayüzü.
@@ -23,4 +23,3 @@ taşır ve ortak ödeme katmanı sertifikasyon sonrası donanım değişiklikler
 PIN, açık PAN, terminal anahtarları ve kriptografik ara değerler uygulama loglarına veya kalıcı
 depolamaya yazılmaz. Üretim anahtarları BuildConfig içinde tutulmamalı; cihazın PCI uyumlu güvenli
 işlemcisine RKL/TR-31/TR-34 akışıyla yüklenmelidir.
-

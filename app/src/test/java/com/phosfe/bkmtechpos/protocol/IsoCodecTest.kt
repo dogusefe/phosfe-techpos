@@ -20,7 +20,7 @@ class IsoCodecTest {
                 25 to "00".toByteArray(),
                 41 to "TERM0001".toByteArray(),
                 42 to "MERCHANT0000001".toByteArray(),
-                49 to "949".toByteArray()
+                49 to "0949".toByteArray()
             )
         )
         val decoded = codec.decode(codec.encode(original))
@@ -30,7 +30,7 @@ class IsoCodecTest {
     }
 
     @Test fun binaryTlvFieldRoundTrips() {
-        val tlv = BerTlv.encode(listOf(TlvEntry(0x1F, byteArrayOf(0x01, 0x02))))
+        val tlv = BkmTlv.encode(listOf(BkmTag(0x1F, byteArrayOf(0x01, 0x02))))
         val original = IsoMessage("0800", mapOf(
             3 to "810000".toByteArray(),
             11 to "000001".toByteArray(),
@@ -42,5 +42,13 @@ class IsoCodecTest {
         val decoded = codec.decode(codec.encode(original))
         assertArrayEquals(tlv, decoded.fields.getValue(63))
     }
-}
 
+    @Test fun oddLengthPanUsesRightFillerAndRoundTrips() {
+        val message = IsoMessage("0200", mapOf(
+            2 to "1234567890123".toByteArray(),
+            3 to "000000".toByteArray(),
+            4 to "000000000100".toByteArray()
+        ))
+        assertArrayEquals(message.fields.getValue(2), codec.decode(codec.encode(message)).fields.getValue(2))
+    }
+}

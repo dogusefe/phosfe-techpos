@@ -39,6 +39,7 @@ class IsoCodec(private val rules: Map<Int, FieldRule> = BkmFieldRules.rules) {
             offset += byteCount
             decoded[number] = when (rule.format) {
                 WireFormat.BCD_NUMERIC -> PackedDecimal.decode(wire, length).toByteArray(Charsets.US_ASCII)
+                WireFormat.BCD_NUMERIC_RIGHT_PAD -> PackedDecimal.decode(wire, length, padRight = true).toByteArray(Charsets.US_ASCII)
                 WireFormat.TRACK -> PackedDecimal.decodeTrack(wire, length).toByteArray(Charsets.US_ASCII)
                 else -> wire
             }
@@ -49,7 +50,7 @@ class IsoCodec(private val rules: Map<Int, FieldRule> = BkmFieldRules.rules) {
 
     private fun encodeField(rule: FieldRule, value: ByteArray): ByteArray {
         val logicalLength = when (rule.format) {
-            WireFormat.BCD_NUMERIC, WireFormat.TRACK -> value.toString(Charsets.US_ASCII).length
+            WireFormat.BCD_NUMERIC, WireFormat.BCD_NUMERIC_RIGHT_PAD, WireFormat.TRACK -> value.toString(Charsets.US_ASCII).length
             else -> value.size
         }
         require(logicalLength <= rule.maxLength) { "F${rule.number} exceeds ${rule.maxLength}" }
@@ -62,6 +63,7 @@ class IsoCodec(private val rules: Map<Int, FieldRule> = BkmFieldRules.rules) {
         }
         val body = when (rule.format) {
             WireFormat.BCD_NUMERIC -> PackedDecimal.encode(value.toString(Charsets.US_ASCII))
+            WireFormat.BCD_NUMERIC_RIGHT_PAD -> PackedDecimal.encode(value.toString(Charsets.US_ASCII), padRight = true)
             WireFormat.TRACK -> PackedDecimal.encodeTrack(value.toString(Charsets.US_ASCII))
             else -> value
         }
@@ -70,7 +72,7 @@ class IsoCodec(private val rules: Map<Int, FieldRule> = BkmFieldRules.rules) {
     }
 
     private fun byteLength(rule: FieldRule, logicalLength: Int): Int = when (rule.format) {
-        WireFormat.BCD_NUMERIC, WireFormat.TRACK -> (logicalLength + 1) / 2
+        WireFormat.BCD_NUMERIC, WireFormat.BCD_NUMERIC_RIGHT_PAD, WireFormat.TRACK -> (logicalLength + 1) / 2
         else -> logicalLength
     }
 

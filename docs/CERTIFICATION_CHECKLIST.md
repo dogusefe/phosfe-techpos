@@ -11,17 +11,17 @@ değildir; geliştirme ve kanıt toplama kontrolüdür.
 | Mesaj şifreleme | 3DES-CBC, sıfır IV, PKCS#5, 16/24 byte MSK | Codec ve birim testleri hazır |
 | Anahtar değişimi | RSA ile legacy akış, RKL, TR-31 ve TR-34 | Bekliyor; HSM/SDK gerektirir |
 | Parametre yükleme | Tüm parametre tabloları, paket birleştirme, atomik kayıt | Bekliyor |
-| Handshake | 0800/0810 akışı ve host sinyalleri | Bekliyor |
-| Otorizasyon | Başarılı/başarısız işlem, EMV, online PIN | Bekliyor |
+| Handshake | 0800/0810 akışı, parametre versiyonları ve host sinyalleri | Temel mesaj/parser hazır |
+| Otorizasyon | Başarılı/başarısız işlem, EMV, online PIN | Temel mesaj/parser ve güvenli gönderim kapısı hazır |
 | Advice / TC upload | Offline advice ve sertifika yükleme | Bekliyor |
-| Teknik iptal | Reversal saklama, tekrar deneme, idempotency | Bekliyor |
+| Teknik iptal | Reversal saklama, tekrar deneme, idempotency | Şifreli kalıcı journal ve yeni işlem engeli hazır; gönderim worker'ı bekliyor |
 | Gün sonu | EOD, batch upload, belge ve sayaç yönetimi | Bekliyor |
 | Ek işlemler | DCC, Çiftçi Kart, puan, QR, taksit, iade, iptal | Bekliyor |
 | Fiş | Mali alanlar, maskeleme, dijital slip | Bekliyor |
 | Datecs adaptörü | EMV L2, PIN, güvenli anahtar, yazıcı | SDK entegrasyonu bekliyor |
 | Newland adaptörü | EMV L2, PIN, güvenli anahtar, yazıcı | SDK entegrasyonu bekliyor |
 | ECR modu | Güvenli dış uygulama sözleşmesi ve durum ilerlemesi | Bekliyor |
-| Dayanıklılık | Ağ kesintisi, güç kaybı, tekrar başlatma, batch sınırı | Bekliyor |
+| Dayanıklılık | Ağ kesintisi, güç kaybı, tekrar başlatma, batch sınırı | Reversal güç-kesintisi sınırı hazır; diğerleri bekliyor |
 | Kanıt paketi | Test logları, mesaj örnekleri, APK imzası, sürüm matrisi | Bekliyor |
 
 ## Sertifikasyon kapısı
