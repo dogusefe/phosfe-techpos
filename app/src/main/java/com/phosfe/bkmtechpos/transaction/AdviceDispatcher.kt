@@ -15,7 +15,10 @@ class AdviceDispatcher(
     constructor(queue: DurableDeliveryQueue, exchange: IsoExchange) : this(DurableQueueAdvicePort(queue), exchange)
     fun dispatchOnce(): AdviceDispatchResult {
         val pending = queue.next() ?: return AdviceDispatchResult.NOTHING_PENDING
-        if (pending.kind !in setOf("OFFLINE_ADVICE", "TC_ADVICE")) return AdviceDispatchResult.SKIPPED_NON_ADVICE
+        if (pending.kind !in setOf("OFFLINE_ADVICE", "TC_ADVICE")) {
+            queue.retry(pending.id, 0L, "SKIPPED")
+            return AdviceDispatchResult.SKIPPED_NON_ADVICE
+        }
         val response = exchange.exchange(pending.request)
         validate(pending.request, response)
         val code = response.text(39) ?: error("Advice response has no F39")
@@ -36,6 +39,23 @@ class AdviceDispatcher(
     }
 
     private companion object { const val ADVICE_RETRY_MS = 60_000L }
+}
+
+class AdviceDrainCoordinator(private val dispatcher: AdviceDispatcher, private val maxItems: Int = 8) {
+    init { require(maxItems > 0) }
+
+    fun drain(): Int {
+        var completed = 0
+        repeat(maxItems) {
+            when (dispatcher.dispatchOnce()) {
+                AdviceDispatchResult.COMPLETED -> completed++
+                AdviceDispatchResult.HOST_REJECTED,
+                AdviceDispatchResult.NOTHING_PENDING -> return completed
+                AdviceDispatchResult.SKIPPED_NON_ADVICE -> Unit
+            }
+        }
+        return completed
+    }
 }
 
 private class DurableQueueAdvicePort(private val queue: DurableDeliveryQueue) : AdviceDeliveryPort {
