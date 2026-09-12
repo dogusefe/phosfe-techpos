@@ -6,7 +6,7 @@ import com.phosfe.bkmtechpos.transaction.TransactionGate
 interface BatchLedger {
     fun approvedTransactions(batchNumber: Int): List<ApprovedBatchTransaction>
     fun markUploaded(transaction: ApprovedBatchTransaction) {}
-    fun closeBatch(batchNumber: Int, hostReference: String)
+    fun closeBatch(totals: BatchSettlement, hostReference: String, uploadedCount: Int)
 }
 
 interface SettlementReceiptWriter {
@@ -23,8 +23,7 @@ class SettlementCoordinator(
     private val requests: SettlementRequestFactory,
     private val uploads: BatchUploadRequestFactory,
     private val ledger: BatchLedger,
-    private val transactionGate: TransactionGate,
-    private val receiptWriter: SettlementReceiptWriter? = null
+    private val transactionGate: TransactionGate
 ) {
     fun settle(totals: BatchSettlement, terminalCapabilities: ByteArray? = null): SettlementResult {
         transactionGate.requireReady()
@@ -52,8 +51,7 @@ class SettlementCoordinator(
     }
 
     private fun complete(totals: BatchSettlement, reference: String, uploadedCount: Int): SettlementResult.Completed {
-        ledger.closeBatch(totals.batchNumber, reference)
-        receiptWriter?.record(totals, reference, uploadedCount)
+        ledger.closeBatch(totals, reference, uploadedCount)
         return SettlementResult.Completed(reference, uploadedCount)
     }
 }

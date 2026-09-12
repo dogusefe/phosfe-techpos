@@ -26,7 +26,6 @@ class PersistenceGraph private constructor(context: Context) {
     )
     val payments = PaymentLedger(database, payloadCipher)
     val batches = RoomBatchLedger(database, payloadCipher)
-    val settlementReceipts = RoomSettlementReceiptWriter(database.settlements())
 
     companion object {
         @Volatile private var instance: PersistenceGraph? = null

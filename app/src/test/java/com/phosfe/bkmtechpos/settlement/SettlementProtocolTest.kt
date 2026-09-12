@@ -10,6 +10,7 @@ import com.phosfe.bkmtechpos.transaction.PendingReversal
 import com.phosfe.bkmtechpos.transaction.ReversalJournal
 import com.phosfe.bkmtechpos.transaction.TransactionGate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Clock
@@ -28,6 +29,22 @@ class SettlementProtocolTest {
             AmountAggregate(0, 0)
         )
     ))
+
+    @Test fun emptyBatchUsesLegacyDefaultCurrencyAndEmptyAmountBuckets() {
+        val encoded = SettlementTotalsCodec.encode(BatchSettlement(1, emptyList()))
+        assertArrayEquals(
+            byteArrayOf(0, 0, 1, 1) + "949".toByteArray() + ByteArray(4 * 3),
+            encoded
+        )
+    }
+
+    @Test fun amountBucketsUsePackedLengthOnlyWhenCountIsPositive() {
+        val encoded = SettlementTotalsCodec.encode(totals)
+        val expected = byteArrayOf(0, 0, 7, 1) + "949".toByteArray() +
+            byteArrayOf(0, 2, 3, 0x01, 0x25, 0x00, 0, 1, 2, 0x05, 0x00) +
+            ByteArray(2 * 3)
+        assertArrayEquals(expected, encoded)
+    }
 
     @Test fun primarySettlementContainsTotalsAndCapabilities() {
         val request = SettlementRequestFactory(profile, RotatingStan(), clock)
@@ -57,7 +74,7 @@ class SettlementProtocolTest {
         val coordinator = SettlementCoordinator(
             exchange,
             SettlementRequestFactory(profile, RotatingStan(), clock),
-            BatchUploadRequestFactory(RotatingStan(100), clock),
+            BatchUploadRequestFactory(),
             ledger,
             TransactionGate(EmptyJournal())
         )
@@ -66,13 +83,16 @@ class SettlementProtocolTest {
         assertEquals(1, (result as SettlementResult.Completed).uploadedCount)
         assertEquals(listOf("910000", "000000", "920000"), processingCodes)
         assertEquals(7, ledger.closedBatch)
+        assertEquals(totals, ledger.closedTotals)
+        assertEquals(1, ledger.uploadedCount)
     }
 
     private fun approvedTransaction(): ApprovedBatchTransaction {
         val request = IsoMessage("0200", mapOf(
             3 to "000000".toByteArray(), 4 to "000000001250".toByteArray(),
             11 to "000001".toByteArray(), 12 to "120000".toByteArray(), 13 to "0912".toByteArray(),
-            22 to "0710".toByteArray(), 25 to "00".toByteArray(),
+            14 to "2812".toByteArray(), 22 to "0710".toByteArray(), 25 to "00".toByteArray(),
+            32 to "0046".toByteArray(),
             41 to "TERM0001".toByteArray(), 42 to "MERCHANT0000001".toByteArray(),
             43 to profile.field43(), 49 to "0949".toByteArray(),
             63 to byteArrayOf(0x0C, 0, 18) + ByteArray(18)
@@ -99,10 +119,46 @@ class SettlementProtocolTest {
         39 to "00".toByteArray(), 41 to request.fields.getValue(41), 42 to request.fields.getValue(42)
     ))
 
+    @Test fun batchUploadDropsAuthorizationOnlyField63Tags() {
+        val transaction = approvedTransaction()
+        val original = transaction.authorizationRequest
+        val extras = BkmTlv.encode(listOf(
+            com.phosfe.bkmtechpos.protocol.BkmTag(0x0A, byteArrayOf(1)),
+            com.phosfe.bkmtechpos.protocol.BkmTag(0x0C, ByteArray(18)),
+            com.phosfe.bkmtechpos.protocol.BkmTag(0x23, ByteArray(5)),
+            com.phosfe.bkmtechpos.protocol.BkmTag(0x25, ByteArray(4))
+        ))
+        val request = BatchUploadRequestFactory().create(
+            transaction.copy(authorizationRequest = original.copy(fields = original.fields + (63 to extras)))
+        )
+        assertEquals(listOf(0x0A, 0x0C, 0x25), BkmTlv.decode(request.fields.getValue(63)).map { it.id })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun batchUploadRejectsMismatchedResponseTime() {
+        val request = BatchUploadRequestFactory().create(approvedTransaction())
+        val response = batchReply(request).let { it.copy(fields = it.fields + (12 to "130000".toByteArray())) }
+        BatchUploadResponseParser.requireApproved(request, response)
+    }
+
+    @Test fun batchUploadAcceptsLegacyAcknowledgementCodes() {
+        val request = BatchUploadRequestFactory().create(approvedTransaction())
+        listOf("08", "11").forEach { code ->
+            val response = batchReply(request).let { it.copy(fields = it.fields + (39 to code.toByteArray())) }
+            BatchUploadResponseParser.requireApproved(request, response)
+        }
+    }
+
     private class MemoryLedger(private val records: List<ApprovedBatchTransaction>) : BatchLedger {
         var closedBatch: Int? = null
+        var closedTotals: BatchSettlement? = null
+        var uploadedCount: Int? = null
         override fun approvedTransactions(batchNumber: Int) = records
-        override fun closeBatch(batchNumber: Int, hostReference: String) { closedBatch = batchNumber }
+        override fun closeBatch(totals: BatchSettlement, hostReference: String, uploadedCount: Int) {
+            closedBatch = totals.batchNumber
+            closedTotals = totals
+            this.uploadedCount = uploadedCount
+        }
     }
 
     private class EmptyJournal : ReversalJournal {

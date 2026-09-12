@@ -6,6 +6,7 @@ import com.phosfe.bkmtechpos.data.local.entity.DeliveryDebtEntity
 import com.phosfe.bkmtechpos.data.local.entity.PaymentRecordEntity
 import com.phosfe.bkmtechpos.settlement.ApprovedBatchTransaction
 import com.phosfe.bkmtechpos.settlement.BatchLedger
+import com.phosfe.bkmtechpos.settlement.BatchSettlement
 import com.phosfe.bkmtechpos.transaction.JournalCipher
 import java.time.Clock
 import java.util.UUID
@@ -113,9 +114,11 @@ class RoomBatchLedger(
         check(database.payments().markBatchUploaded(id, clock.millis()) == 1) { "Payment $id was not marked uploaded" }
     }
 
-    override fun closeBatch(batchNumber: Int, hostReference: String) {
+    override fun closeBatch(totals: BatchSettlement, hostReference: String, uploadedCount: Int) {
+        val batchNumber = totals.batchNumber
         val now = clock.millis()
         database.runInTransaction {
+            RoomSettlementReceiptWriter(database.settlements(), clock).record(totals, hostReference, uploadedCount)
             check(database.batches().close(batchNumber, hostReference, now) == 1) {
                 "Batch $batchNumber is not open"
             }

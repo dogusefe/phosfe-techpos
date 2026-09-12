@@ -16,7 +16,7 @@ değildir; geliştirme ve kanıt toplama kontrolüdür.
 | Otorizasyon | Başarılı/başarısız işlem, EMV, online PIN | Temel mesaj/parser ve güvenli gönderim kapısı hazır |
 | Advice / TC upload | Offline advice ve sertifika yükleme | Bekliyor |
 | Teknik iptal | Reversal saklama, tekrar deneme, idempotency | Şifreli journal, işlem engeli ve 0400/0410 dispatcher hazır |
-| Gün sonu | EOD, batch upload, belge ve sayaç yönetimi | 0500/0510, 0320/0330 ve mutabakat durum makinesi hazır; kalıcı ledger ve belgeler bekliyor |
+| Gün sonu | EOD, batch upload, belge ve sayaç yönetimi | Legacy ile doğrulanan F63 toplamları ve 0320 alanları, 0330 onayı, atomik batch kapanışı ile özet receipt hazır; ayrıntılı yeniden yazdırma ve otomatik VEOD zamanlayıcısı bekliyor |
 | Ek işlemler | DCC, Çiftçi Kart, puan, QR, taksit, iade, iptal | Bekliyor |
 | Fiş | Mali alanlar, maskeleme, dijital slip | Bekliyor |
 | Datecs adaptörü | EMV L2, PIN, güvenli anahtar, yazıcı | SDK entegrasyonu bekliyor |
