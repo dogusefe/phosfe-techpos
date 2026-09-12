@@ -22,7 +22,7 @@ class PersistenceGraph private constructor(context: Context) {
     val reversals: ReversalJournal = RoomReversalJournal(database.deliveryDebts(), payloadCipher)
     val deliveries = DurableDeliveryQueue(database.deliveryDebts(), payloadCipher)
     val parameters: ParameterActivationStore = ValidatedParameterActivationStore(
-        RoomParameterActivationStore(database.parameters(), database.parameterProjections())
+        RoomParameterActivationStore(database)
     )
     val payments = PaymentLedger(database, payloadCipher)
     val batches = RoomBatchLedger(database, payloadCipher)
