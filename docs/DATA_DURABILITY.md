@@ -14,8 +14,9 @@ Room şeması uygulama açılışında `PhosfeTechposApplication` tarafından a�
 
 ## Güvenlik
 
-Tam PAN ve ISO8583 istek/cevapları düz kolonlarda tutulmaz. Bu değerler Android Keystore'daki
-`phosfe.techpos.persistence.payloads.v1` anahtarıyla AES-256-GCM zarfı olarak BLOB kolonlara yazılır.
+Tam PAN ve ISO8583 istek/cevapları düz kolonlarda tutulmaz. Bu değerler Android Keystore'da seçilen
+uygulamanın applicationId değerinden türetilen `<applicationId>.persistence.payloads.v1` anahtarıyla
+AES-256-GCM zarfı olarak BLOB kolonlara yazılır.
 Arama ve raporlama için yalnız maskeli PAN, STAN, RRN, batch, tutar ve cevap kodu açık kolonlardadır.
 
 ## Atomiklik ve gönderim sırası

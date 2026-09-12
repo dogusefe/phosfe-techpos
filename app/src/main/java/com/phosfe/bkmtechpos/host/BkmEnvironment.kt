@@ -10,6 +10,8 @@ data class HostEndpoint(val host: String, val port: Int) {
 }
 
 data class BkmEnvironment(
+    val customerId: String,
+    val applicationName: String,
     val name: String,
     val vendorId: String,
     val producerCode: String,
@@ -30,6 +32,8 @@ data class BkmEnvironment(
 
     companion object {
         fun fromBuild(): BkmEnvironment = BkmEnvironment(
+            customerId = BuildConfig.CUSTOMER_ID,
+            applicationName = BuildConfig.APP_NAME,
             name = BuildConfig.BKM_ENVIRONMENT,
             vendorId = BuildConfig.VENDOR_ID,
             producerCode = BuildConfig.PRODUCER_CODE,

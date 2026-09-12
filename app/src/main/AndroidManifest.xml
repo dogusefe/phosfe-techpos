@@ -6,7 +6,7 @@
     <application
         android:name=".PhosfeTechposApplication"
         android:allowBackup="false"
-        android:label="Phosfe TechPOS"
+        android:label="${appLabel}"
         android:supportsRtl="true"
         android:theme="@style/Theme.PhosfeTechpos"
         android:usesCleartextTraffic="false">

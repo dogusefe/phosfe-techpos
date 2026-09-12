@@ -29,8 +29,10 @@ interface JournalCipher {
 
 class AesGcmJournalCipher(
     private val key: SecretKey,
-    private val random: SecureRandom = SecureRandom()
+    private val random: SecureRandom = SecureRandom(),
+    associatedData: ByteArray = DEFAULT_AAD
 ) : JournalCipher {
+    private val associatedData = associatedData.copyOf()
     override fun seal(clear: ByteArray): ByteArray {
         val iv = ByteArray(12).also(random::nextBytes)
         val encrypted = cipher(Cipher.ENCRYPT_MODE, iv).doFinal(clear)
@@ -46,12 +48,12 @@ class AesGcmJournalCipher(
 
     private fun cipher(mode: Int, iv: ByteArray): Cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
         init(mode, key, GCMParameterSpec(128, iv))
-        updateAAD(AAD)
+        updateAAD(associatedData)
     }
 
     private companion object {
         const val ENVELOPE_VERSION = 1
-        val AAD = "com.phosfe.bkmtechpos.reversal.v1".toByteArray(Charsets.US_ASCII)
+        val DEFAULT_AAD = "techpos.reversal.v1".toByteArray(Charsets.US_ASCII)
     }
 }
 

@@ -38,16 +38,17 @@ class DatabasePassphraseStore(private val context: Context) {
 
     private fun cipher(mode: Int, iv: ByteArray): Cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
         init(mode, key(), GCMParameterSpec(128, iv))
-        updateAAD(AAD)
+        updateAAD("${context.packageName}.database-key.v1".toByteArray(Charsets.US_ASCII))
     }
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        (store.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
+        val alias = "${context.packageName}.database.wrapper.v1"
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
             init(
                 KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
+                    alias,
                     KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
                 )
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -63,8 +64,6 @@ class DatabasePassphraseStore(private val context: Context) {
         const val PREFERENCES = "phosfe_database_key_v1"
         const val SEALED_PASSPHRASE = "sealed_passphrase"
         const val KEYSTORE = "AndroidKeyStore"
-        const val KEY_ALIAS = "phosfe.techpos.database.wrapper.v1"
         const val FORMAT_VERSION: Byte = 1
-        val AAD = "com.phosfe.bkmtechpos.database-key.v1".toByteArray(Charsets.US_ASCII)
     }
 }

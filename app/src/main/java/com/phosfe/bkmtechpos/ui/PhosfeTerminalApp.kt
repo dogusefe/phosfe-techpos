@@ -95,7 +95,7 @@ private fun Header() {
         ) { Text("P", color = Color.White, fontWeight = FontWeight.Black) }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("Phosfe TechPOS", style = MaterialTheme.typography.titleLarge)
+            Text(BuildConfig.APP_NAME, style = MaterialTheme.typography.titleLarge)
             Text("Güvenli ödeme terminali", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,4 +250,3 @@ private fun BottomBar(page: Page, onPage: (Page) -> Unit) {
         }
     }
 }
-

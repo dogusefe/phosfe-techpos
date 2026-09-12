@@ -7,15 +7,28 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val bkmEnvironmentFile = rootProject.file("bkm-environment.properties")
+val customerId = (project.findProperty("CUSTOMER") as? String)?.takeIf(String::isNotBlank)
+    ?: System.getenv("TECHPOS_CUSTOMER")?.takeIf(String::isNotBlank)
+    ?: "phosfe"
+require(customerId.matches(Regex("[a-z][a-z0-9-]{1,31}"))) { "Invalid CUSTOMER profile: $customerId" }
+
+val customerDirectory = rootProject.file("customers/$customerId")
+val customerProfileFile = customerDirectory.resolve("profile.properties")
+require(customerProfileFile.isFile) { "Customer profile not found: $customerProfileFile" }
+val customerProperties = Properties().apply { customerProfileFile.inputStream().use(::load) }
+
+val customerEnvironmentFile = customerDirectory.resolve("bkm-environment.properties")
+val legacyEnvironmentFile = rootProject.file("bkm-environment.properties")
 val bkmEnvironmentProperties = Properties().apply {
-    if (bkmEnvironmentFile.exists()) bkmEnvironmentFile.inputStream().use(::load)
+    if (legacyEnvironmentFile.exists()) legacyEnvironmentFile.inputStream().use(::load)
+    if (customerEnvironmentFile.exists()) customerEnvironmentFile.inputStream().use(::load)
 }
 
 fun propertyOr(key: String, fallback: String): String =
     (project.findProperty(key) as? String)?.takeIf(String::isNotBlank)
+        ?: System.getenv("TECHPOS_$key")?.takeIf(String::isNotBlank)
         ?: bkmEnvironmentProperties.getProperty(key)?.takeIf(String::isNotBlank)
-        ?: System.getenv("PHOSFE_$key")?.takeIf(String::isNotBlank)
+        ?: customerProperties.getProperty(key)?.takeIf(String::isNotBlank)
         ?: fallback
 
 fun quotedProperty(key: String, fallback: String = ""): String =
@@ -30,7 +43,8 @@ fun environmentComplete(suffix: String): Boolean = listOf(
     "SERIAL_HEADER"
 ).all { propertyOr(it, "").isNotBlank() }
 
-val signingFile = rootProject.file("keystore.properties")
+val customerSigningFile = customerDirectory.resolve("keystore.properties")
+val signingFile = customerSigningFile.takeIf { it.exists() } ?: rootProject.file("keystore.properties")
 val signingProperties = Properties().apply {
     if (signingFile.exists()) signingFile.inputStream().use(::load)
 }
@@ -43,13 +57,16 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.phosfe.bkmtechpos"
+        applicationId = propertyOr("APPLICATION_ID", "com.phosfe.bkmtechpos")
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = propertyOr("VERSION_CODE", "1").toInt()
+        versionName = propertyOr("VERSION_NAME", "1.0.0")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["appLabel"] = propertyOr("APP_NAME", "TechPOS")
 
+        buildConfigField("String", "CUSTOMER_ID", quotedProperty("CUSTOMER_ID", customerId))
+        buildConfigField("String", "APP_NAME", quotedProperty("APP_NAME", "TechPOS"))
         buildConfigField("String", "RSA_EXPONENT", "\"010001\"")
         buildConfigField("boolean", "PHASE2_SUPPORT", "true")
         buildConfigField("boolean", "BIN8_SUPPORT", "true")
@@ -171,9 +188,11 @@ android {
         }
         outputs.all {
             (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
-                "PhosfeTechPOS-$modeCode-$vendorCode-${buildType.name}-v$versionName.apk"
+                "${propertyOr("ARTIFACT_NAME", "TechPOS")}-$modeCode-$vendorCode-${buildType.name}-v$versionName.apk"
         }
     }
+
+    sourceSets.getByName("main").res.srcDir(customerDirectory.resolve("res"))
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

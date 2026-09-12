@@ -5,6 +5,8 @@
 local.properties
 keystore.properties
 bkm-environment.properties
+customers/*/bkm-environment.properties
+customers/*/keystore.properties
 *.jks
 *.keystore
 captures/
