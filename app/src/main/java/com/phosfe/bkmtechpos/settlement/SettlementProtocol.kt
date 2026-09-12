@@ -115,7 +115,8 @@ object SettlementResponseParser {
 data class ApprovedBatchTransaction(
     val pan: String,
     val authorizationRequest: IsoMessage,
-    val authorizationResponse: IsoMessage
+    val authorizationResponse: IsoMessage,
+    val recordId: String? = null
 ) {
     init {
         require(pan.length in 12..19 && pan.all(Char::isDigit))

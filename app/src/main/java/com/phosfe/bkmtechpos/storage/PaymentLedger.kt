@@ -103,9 +103,15 @@ class RoomBatchLedger(
             ApprovedBatchTransaction(
                 pan,
                 IsoPayloadCodec.decode(cipher.open(record.requestEnvelope)),
-                response
+                response,
+                record.id
             )
         }
+
+    override fun markUploaded(transaction: ApprovedBatchTransaction) {
+        val id = transaction.recordId ?: return
+        check(database.payments().markBatchUploaded(id, clock.millis()) == 1) { "Payment $id was not marked uploaded" }
+    }
 
     override fun closeBatch(batchNumber: Int, hostReference: String) {
         val now = clock.millis()

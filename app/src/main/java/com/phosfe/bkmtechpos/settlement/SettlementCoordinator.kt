@@ -5,6 +5,7 @@ import com.phosfe.bkmtechpos.transaction.TransactionGate
 
 interface BatchLedger {
     fun approvedTransactions(batchNumber: Int): List<ApprovedBatchTransaction>
+    fun markUploaded(transaction: ApprovedBatchTransaction) {}
     fun closeBatch(batchNumber: Int, hostReference: String)
 }
 
@@ -40,6 +41,7 @@ class SettlementCoordinator(
         records.forEach { record ->
             val request = uploads.create(record)
             BatchUploadResponseParser.requireApproved(request, exchange.exchange(request))
+            ledger.markUploaded(record)
         }
         val secondaryRequest = requests.create(ReconciliationStep.AFTER_BATCH_UPLOAD, totals, terminalCapabilities)
         return when (val secondary = SettlementResponseParser.parse(secondaryRequest, exchange.exchange(secondaryRequest))) {
