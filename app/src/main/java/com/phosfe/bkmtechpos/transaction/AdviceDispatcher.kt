@@ -32,8 +32,12 @@ class AdviceDispatcher(
     }
 
     private fun validate(request: IsoMessage, response: IsoMessage) {
-        require(request.messageType == "0220") { "Advice request MTI mismatch" }
-        require(response.messageType == "0230") { "Advice response MTI mismatch" }
+        val expectedResponse = when (request.messageType) {
+            "0220" -> "0230"
+            "0120" -> "0130"
+            else -> error("Advice request MTI mismatch: ${request.messageType}")
+        }
+        require(response.messageType == expectedResponse) { "Advice response MTI mismatch" }
         require(response.text(3) == request.text(3)) { "Advice processing code mismatch" }
         require(response.text(11) == request.text(11)) { "Advice STAN mismatch" }
     }

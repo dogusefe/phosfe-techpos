@@ -21,8 +21,14 @@ class AdviceDispatcherTest {
         assertEquals("05", port.retryCode)
     }
 
-    private fun request() = IsoMessage("0220", mapOf(3 to "000000".toByteArray(), 11 to "123456".toByteArray()))
-    private fun reply(code: String = "00") = IsoMessage("0230", mapOf(3 to "000000".toByteArray(), 11 to "123456".toByteArray(), 39 to code.toByteArray()))
+    @Test fun preAuthAdviceUses0120And0130() {
+        val port = FakePort(PendingDelivery("id", "OFFLINE_ADVICE", request("0120"), 1))
+        val result = AdviceDispatcher(port, IsoExchange { reply("00", "0130") }).dispatchOnce()
+        assertEquals(AdviceDispatchResult.COMPLETED, result)
+    }
+
+    private fun request(mti: String = "0220") = IsoMessage(mti, mapOf(3 to "000000".toByteArray(), 11 to "123456".toByteArray()))
+    private fun reply(code: String = "00", mti: String = "0230") = IsoMessage(mti, mapOf(3 to "000000".toByteArray(), 11 to "123456".toByteArray(), 39 to code.toByteArray()))
 
     private class FakePort(private val pending: PendingDelivery?) : AdviceDeliveryPort {
         var ackCode: String? = null
