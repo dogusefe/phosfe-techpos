@@ -7,8 +7,28 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val bkmEnvironmentFile = rootProject.file("bkm-environment.properties")
+val bkmEnvironmentProperties = Properties().apply {
+    if (bkmEnvironmentFile.exists()) bkmEnvironmentFile.inputStream().use(::load)
+}
+
 fun propertyOr(key: String, fallback: String): String =
-    (project.findProperty(key) as? String)?.takeIf(String::isNotBlank) ?: fallback
+    (project.findProperty(key) as? String)?.takeIf(String::isNotBlank)
+        ?: bkmEnvironmentProperties.getProperty(key)?.takeIf(String::isNotBlank)
+        ?: System.getenv("PHOSFE_$key")?.takeIf(String::isNotBlank)
+        ?: fallback
+
+fun quotedProperty(key: String, fallback: String = ""): String =
+    "\"${propertyOr(key, fallback).replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+fun environmentComplete(suffix: String): Boolean = listOf(
+    "VENDOR_ID_$suffix",
+    "IMMK_$suffix",
+    "RSA_MODULUS_$suffix",
+    "PRODUCER_CODE",
+    "DEVICE_TYPE",
+    "SERIAL_HEADER"
+).all { propertyOr(it, "").isNotBlank() }
 
 val signingFile = rootProject.file("keystore.properties")
 val signingProperties = Properties().apply {
@@ -30,11 +50,17 @@ android {
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "HOST_PRIMARY", "\"${propertyOr("HOST_PRIMARY", "techpos-host.bkmtest.com.tr")}\"")
-        buildConfigField("int", "HOST_PORT", propertyOr("HOST_PORT", "12500"))
-        buildConfigField("String", "VENDOR_ID", "\"${propertyOr("VENDOR_ID", "00")}\"")
-        buildConfigField("String", "PRODUCER_CODE", "\"${propertyOr("PRODUCER_CODE", "PHS")}\"")
-        buildConfigField("String", "DEVICE_TYPE", "\"${propertyOr("DEVICE_TYPE", "POS")}\"")
+        buildConfigField("String", "RSA_EXPONENT", "\"010001\"")
+        buildConfigField("boolean", "PHASE2_SUPPORT", "true")
+        buildConfigField("boolean", "BIN8_SUPPORT", "true")
+        buildConfigField("boolean", "QR_SUPPORT", "true")
+        buildConfigField("boolean", "FQDN_SUPPORT", "true")
+        buildConfigField("boolean", "TR31_SUPPORT", "true")
+        buildConfigField("String", "PRODUCER_CODE", quotedProperty("PRODUCER_CODE"))
+        buildConfigField("String", "DEVICE_TYPE", quotedProperty("DEVICE_TYPE"))
+        buildConfigField("String", "SERIAL_HEADER", quotedProperty("SERIAL_HEADER"))
+        buildConfigField("boolean", "IS_DAKT", propertyOr("DAKT", "false"))
+        buildConfigField("boolean", "PRINTER_PRESENT", propertyOr("PRINTER_PRESENT", "true"))
         buildConfigField("boolean", "DB_ENCRYPTED", "false")
         buildConfigField("boolean", "HOST_WIRE_LOG", "false")
         buildConfigField("boolean", "DB_TOOLS", "false")
@@ -81,6 +107,15 @@ android {
             versionNameSuffix = "-debug"
             buildConfigField("boolean", "HOST_WIRE_LOG", "true")
             buildConfigField("boolean", "DB_TOOLS", "true")
+            buildConfigField("String", "BKM_ENVIRONMENT", "\"TEST\"")
+            buildConfigField("boolean", "BKM_CONFIGURATION_COMPLETE", environmentComplete("TEST").toString())
+            buildConfigField("String", "VENDOR_ID", quotedProperty("VENDOR_ID_TEST"))
+            buildConfigField("String", "IMMK", quotedProperty("IMMK_TEST"))
+            buildConfigField("String", "HOST_RSA_MODULUS", quotedProperty("RSA_MODULUS_TEST"))
+            buildConfigField("String", "HOST_PRIMARY", quotedProperty("HOST_PRIMARY_TEST", "techpos-host.bkmtest.com.tr"))
+            buildConfigField("int", "PORT_PRIMARY", propertyOr("PORT_PRIMARY_TEST", "12500"))
+            buildConfigField("String", "HOST_SECONDARY", quotedProperty("HOST_SECONDARY_TEST", "techpos-host.bkmtest.com.tr"))
+            buildConfigField("int", "PORT_SECONDARY", propertyOr("PORT_SECONDARY_TEST", "12500"))
         }
         release {
             isMinifyEnabled = true
@@ -89,6 +124,15 @@ android {
             buildConfigField("boolean", "DB_ENCRYPTED", "true")
             buildConfigField("boolean", "HOST_WIRE_LOG", "false")
             buildConfigField("boolean", "DB_TOOLS", "false")
+            buildConfigField("String", "BKM_ENVIRONMENT", "\"PRODUCTION\"")
+            buildConfigField("boolean", "BKM_CONFIGURATION_COMPLETE", environmentComplete("PROD").toString())
+            buildConfigField("String", "VENDOR_ID", quotedProperty("VENDOR_ID_PROD"))
+            buildConfigField("String", "IMMK", quotedProperty("IMMK_PROD"))
+            buildConfigField("String", "HOST_RSA_MODULUS", quotedProperty("RSA_MODULUS_PROD"))
+            buildConfigField("String", "HOST_PRIMARY", quotedProperty("HOST_PRIMARY_PROD", "techpos-host.bkm.com.tr"))
+            buildConfigField("int", "PORT_PRIMARY", propertyOr("PORT_PRIMARY_PROD", "12500"))
+            buildConfigField("String", "HOST_SECONDARY", quotedProperty("HOST_SECONDARY_PROD", "techpos-host.bkm.com.tr"))
+            buildConfigField("int", "PORT_SECONDARY", propertyOr("PORT_SECONDARY_PROD", "12500"))
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (hasReleaseSigning) {
                 signingConfigs.getByName("release")

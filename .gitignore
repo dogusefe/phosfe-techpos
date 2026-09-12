@@ -4,9 +4,9 @@
 **/build/
 local.properties
 keystore.properties
+bkm-environment.properties
 *.jks
 *.keystore
 captures/
 externalNativeBuild/
 .cxx/
-
