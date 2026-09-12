@@ -7,10 +7,11 @@ data class TlvEntry(val tag: Int, val value: ByteArray)
 object BerTlv {
     fun encode(entries: List<TlvEntry>): ByteArray = ByteArrayOutputStream().also { output ->
         entries.forEach { entry ->
-            require(entry.tag in 0..0xFFFF)
-            if (entry.tag <= 0xFF) output.write(entry.tag) else {
-                output.write(entry.tag ushr 8)
-                output.write(entry.tag and 0xFF)
+            require(entry.tag in 0..0xFFFFFF)
+            when {
+                entry.tag <= 0xFF -> output.write(entry.tag)
+                entry.tag <= 0xFFFF -> { output.write(entry.tag ushr 8); output.write(entry.tag and 0xFF) }
+                else -> { output.write(entry.tag ushr 16); output.write(entry.tag ushr 8); output.write(entry.tag and 0xFF) }
             }
             writeLength(output, entry.value.size)
             output.write(entry.value)
@@ -23,8 +24,13 @@ object BerTlv {
         while (offset < data.size) {
             var tag = data[offset++].toInt() and 0xFF
             if (tag and 0x1F == 0x1F) {
-                require(offset < data.size)
-                tag = (tag shl 8) or (data[offset++].toInt() and 0xFF)
+                var tagBytes = 1
+                do {
+                    require(offset < data.size)
+                    tag = (tag shl 8) or (data[offset].toInt() and 0xFF)
+                    tagBytes++
+                } while (data[offset++].toInt() and 0x80 != 0)
+                require(tagBytes <= 3) { "BER tag is longer than 3 bytes" }
             }
             require(offset < data.size)
             val firstLength = data[offset++].toInt() and 0xFF
@@ -51,4 +57,3 @@ object BerTlv {
         }
     }
 }
-
