@@ -2,16 +2,17 @@ package com.phosfe.bkmtechpos.transaction
 
 import com.phosfe.bkmtechpos.host.IsoExchange
 import com.phosfe.bkmtechpos.protocol.IsoMessage
-import com.phosfe.bkmtechpos.storage.DurableDeliveryQueue
 import com.phosfe.bkmtechpos.storage.PendingDelivery
+import com.phosfe.bkmtechpos.storage.DurableDeliveryQueue
 
 enum class AdviceDispatchResult { NOTHING_PENDING, COMPLETED, HOST_REJECTED, SKIPPED_NON_ADVICE }
 
 /** Delivers one durable offline/TC advice and leaves transport failures retryable. */
 class AdviceDispatcher(
-    private val queue: DurableDeliveryQueue,
+    private val queue: AdviceDeliveryPort,
     private val exchange: IsoExchange
 ) {
+    constructor(queue: DurableDeliveryQueue, exchange: IsoExchange) : this(DurableQueueAdvicePort(queue), exchange)
     fun dispatchOnce(): AdviceDispatchResult {
         val pending = queue.next() ?: return AdviceDispatchResult.NOTHING_PENDING
         if (pending.kind !in setOf("OFFLINE_ADVICE", "TC_ADVICE")) return AdviceDispatchResult.SKIPPED_NON_ADVICE
@@ -35,4 +36,16 @@ class AdviceDispatcher(
     }
 
     private companion object { const val ADVICE_RETRY_MS = 60_000L }
+}
+
+private class DurableQueueAdvicePort(private val queue: DurableDeliveryQueue) : AdviceDeliveryPort {
+    override fun next() = queue.next()
+    override fun acknowledge(id: String, responseCode: String, hostReference: String?) = queue.acknowledge(id, responseCode, hostReference)
+    override fun retry(id: String, delayMillis: Long, responseCode: String?) = queue.retry(id, delayMillis, responseCode)
+}
+
+interface AdviceDeliveryPort {
+    fun next(): PendingDelivery?
+    fun acknowledge(id: String, responseCode: String, hostReference: String? = null)
+    fun retry(id: String, delayMillis: Long, responseCode: String? = null)
 }
