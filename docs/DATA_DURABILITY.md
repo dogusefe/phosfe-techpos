@@ -10,6 +10,7 @@ Room şeması uygulama açılışında `PhosfeTechposApplication` tarafından a�
 - `delivery_debt`: Reversal, offline advice, TC advice ve batch upload gönderim borçları.
 - `batch_cycle`: Açık/kapanmış batch numarası, işlem sıra sayacı ve settlement referansı.
 - `parameter_table`: CRC doğrulaması tamamlanmış aktif BKM parametre tabloları.
+- `parameter_projection`: VTERM/VBIN/VEOD/VCOMM2/EMV tablolarının doğrulanmış kernel görünümü; ham tablo ile aynı Room transaction'ında güncellenir.
 - `settlement_receipt`: Kalıcı gün sonu sonucu ve yeniden yazdırma kaynağı.
 
 ## Güvenlik

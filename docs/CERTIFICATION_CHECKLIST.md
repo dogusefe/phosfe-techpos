@@ -10,8 +10,8 @@ değildir; geliştirme ve kanıt toplama kontrolüdür.
 | Mesaj zarfı | Host header, uzunluk, encryption indicator, CRC | Codec ve birim testleri hazır |
 | Mesaj şifreleme | 3DES-CBC, sıfır IV, PKCS#5, 16/24 byte MSK | Codec ve birim testleri hazır |
 | Anahtar değişimi | RSA ile legacy akış, RKL, TR-31 ve TR-34 | Bekliyor; HSM/SDK gerektirir |
-| Parametre yükleme | Tüm parametre tabloları, paket birleştirme, atomik kayıt | 900000/900001, chunk/CRC, genel tablo ayrıştırma ve atomik Room aktivasyonu hazır; tablo-özel parser'lar bekliyor |
-| Kalıcı veri | İşlem, reversal, advice, batch ve gün sonu kayıtlarının yeniden başlatmada korunması | Room şema v1, WAL, şifreli ISO/PAN zarfları ve öncelikli durable outbox hazır |
+| Parametre yükleme | Tüm parametre tabloları, paket birleştirme, atomik kayıt | 900000/900001, chunk/CRC, tablo-özel binary/BER parser'ları, doğrulama ve atomik Room snapshot/projeksiyon aktivasyonu hazır |
+| Kalıcı veri | İşlem, reversal, advice, batch ve gün sonu kayıtlarının yeniden başlatmada korunması | Room şema v2, WAL, migration, şifreli ISO/PAN zarfları, parametre projeksiyonları ve öncelikli durable outbox hazır |
 | Handshake | 0800/0810 akışı, parametre versiyonları ve host sinyalleri | Temel mesaj/parser hazır |
 | Otorizasyon | Başarılı/başarısız işlem, EMV, online PIN | Temel mesaj/parser ve güvenli gönderim kapısı hazır |
 | Advice / TC upload | Offline advice ve sertifika yükleme | Bekliyor |
