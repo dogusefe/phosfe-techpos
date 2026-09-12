@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import com.phosfe.bkmtechpos.parameters.ParameterActivationStore
+import com.phosfe.bkmtechpos.parameters.ValidatedParameterActivationStore
 import com.phosfe.bkmtechpos.data.local.TerminalDatabase
 import com.phosfe.bkmtechpos.transaction.AesGcmJournalCipher
 import com.phosfe.bkmtechpos.transaction.JournalCipher
@@ -20,7 +21,9 @@ class PersistenceGraph private constructor(context: Context) {
     )
     val reversals: ReversalJournal = RoomReversalJournal(database.deliveryDebts(), payloadCipher)
     val deliveries = DurableDeliveryQueue(database.deliveryDebts(), payloadCipher)
-    val parameters: ParameterActivationStore = RoomParameterActivationStore(database.parameters())
+    val parameters: ParameterActivationStore = ValidatedParameterActivationStore(
+        RoomParameterActivationStore(database.parameters())
+    )
     val payments = PaymentLedger(database, payloadCipher)
     val batches = RoomBatchLedger(database, payloadCipher)
 
