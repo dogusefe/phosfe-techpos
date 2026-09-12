@@ -23,23 +23,11 @@ data class FiscalIdentity(val nationalId: String?, val taxNumber: String?) {
         (taxNumber ?: "".padEnd(10, ' ')).padEnd(10, ' ').ascii()
 }
 
-data class Tr31Capabilities(val innerVersions: List<Char>, val keyUsageSchemas: List<Char>) {
-    init {
-        require(innerVersions.size <= 4 && innerVersions.all { it in setOf('A', 'B', 'C', 'D') })
-        require(keyUsageSchemas.size <= 3 && keyUsageSchemas.all { it in setOf('0', '1', '2') })
-    }
-
-    fun encode(): ByteArray = byteArrayOf(innerVersions.size.toByte()) +
-        innerVersions.joinToString("").ascii() +
-        byteArrayOf(keyUsageSchemas.size.toByte()) + keyUsageSchemas.joinToString("").ascii()
-}
-
 data class ParameterRequestProfile(
     val reason: ParameterLoadReason,
     val versions: List<ParameterVersion>,
     val deviceClass: TerminalDeviceClass,
     val fiscalIdentity: FiscalIdentity? = null,
-    val tr31Capabilities: Tr31Capabilities? = null,
     val communicationTypes: ByteArray = byteArrayOf(1, 0, 0),
     val terminalCapabilities: ByteArray = ByteArray(5)
 ) {
@@ -49,7 +37,6 @@ data class ParameterRequestProfile(
         require(terminalCapabilities.size == 5)
         if (reason == ParameterLoadReason.INITIAL_INSTALLATION) {
             requireNotNull(fiscalIdentity) { "Initial installation requires fiscal identity" }
-            requireNotNull(tr31Capabilities) { "Initial installation requires explicit TR-31 capability" }
         }
     }
 }
@@ -68,7 +55,6 @@ class ParameterRequestFactory(
             BkmTag(0x35, byteArrayOf(profile.reason.wireValue.toByte()))
         )
         profile.fiscalIdentity?.let { tags += BkmTag(0x0D, it.encode()) }
-        profile.tr31Capabilities?.let { tags += BkmTag(0x34, it.encode()) }
         return request("900000", null, tags)
     }
 
