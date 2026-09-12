@@ -21,5 +21,5 @@ taşır ve ortak ödeme katmanı sertifikasyon sonrası donanım değişiklikler
 ## Güvenlik sınırı
 
 PIN, açık PAN, terminal anahtarları ve kriptografik ara değerler uygulama loglarına veya kalıcı
-depolamaya yazılmaz. Üretim anahtarları BuildConfig içinde tutulmamalı; cihazın PCI uyumlu güvenli
-işlemcisine RKL/TR-31/TR-34 akışıyla yüklenmelidir.
+depolamaya yazılmaz. Üretim anahtarları BuildConfig içinde tutulmamalı; RSA ile taşınan TR-31
+key block, cihazın PCI uyumlu güvenli işlemcisine aktarılmalıdır. RKL ve TR-34 bu ürün kapsamında değildir.

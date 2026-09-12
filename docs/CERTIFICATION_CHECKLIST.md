@@ -9,7 +9,7 @@ değildir; geliştirme ve kanıt toplama kontrolüdür.
 | BER-TLV | F48/F55/F62/F63 verileri | Codec ve birim testleri hazır |
 | Mesaj zarfı | Host header, uzunluk, encryption indicator, CRC | Codec ve birim testleri hazır |
 | Mesaj şifreleme | 3DES-CBC, sıfır IV, PKCS#5, 16/24 byte MSK | Codec ve birim testleri hazır |
-| Anahtar değişimi | RSA ile legacy akış, RKL, TR-31 ve TR-34 | Bekliyor; HSM/SDK gerektirir |
+| Anahtar değişimi | RSA legacy taşıma + TR-31 key block | Bekliyor; HSM/SDK ve vendor key-injection sözleşmesi gerektirir; RKL/TR-34 kapsam dışı |
 | Parametre yükleme | Tüm parametre tabloları, paket birleştirme, atomik kayıt | 900000/900001, chunk/CRC, tablo-özel binary/BER parser'ları, doğrulama ve atomik Room snapshot/projeksiyon aktivasyonu hazır |
 | Kalıcı veri | İşlem, reversal, advice, batch ve gün sonu kayıtlarının yeniden başlatmada korunması | Room şema v2, WAL, migration, şifreli ISO/PAN zarfları, parametre projeksiyonları ve öncelikli durable outbox hazır |
 | Handshake | 0800/0810 akışı, parametre versiyonları ve host sinyalleri | Temel mesaj/parser hazır |
