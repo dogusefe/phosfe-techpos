@@ -5,8 +5,11 @@ import com.phosfe.bkmtechpos.parameters.ParameterTableBlock
 import com.phosfe.bkmtechpos.protocol.IsoMessage
 import com.phosfe.bkmtechpos.data.local.dao.DeliveryDebtDao
 import com.phosfe.bkmtechpos.data.local.dao.ParameterRecordDao
+import com.phosfe.bkmtechpos.data.local.dao.ParameterProjectionDao
 import com.phosfe.bkmtechpos.data.local.entity.DeliveryDebtEntity
 import com.phosfe.bkmtechpos.data.local.entity.ParameterRecordEntity
+import com.phosfe.bkmtechpos.parameters.ParameterProjectionMapper
+import com.phosfe.bkmtechpos.parameters.tables.ParameterTableDecoder
 import com.phosfe.bkmtechpos.transaction.JournalCipher
 import com.phosfe.bkmtechpos.transaction.PendingReversal
 import com.phosfe.bkmtechpos.transaction.ReversalJournal
@@ -15,6 +18,7 @@ import java.util.UUID
 
 class RoomParameterActivationStore(
     private val dao: ParameterRecordDao,
+    private val projectionDao: ParameterProjectionDao,
     private val clock: Clock = Clock.systemUTC()
 ) : ParameterActivationStore {
     override fun activateAtomically(tables: List<ParameterTableBlock>) {
@@ -23,6 +27,11 @@ class RoomParameterActivationStore(
         val deleted = tables.filter(ParameterTableBlock::deletesExistingTable).map(ParameterTableBlock::type)
         val records = tables.filterNot(ParameterTableBlock::deletesExistingTable).map {
             ParameterRecordEntity(it.type, it.action, it.reference, it.version, it.data.copyOf(), now)
+        }
+        deleted.forEach(projectionDao::delete)
+        records.forEach { record ->
+            val block = tables.first { it.type == record.type }
+            projectionDao.upsert(ParameterProjectionMapper.map(block, ParameterTableDecoder.decode(block), now))
         }
         dao.activate(records, deleted)
     }
