@@ -1,0 +1,38 @@
+package com.phosfe.bkmtechpos.transaction
+
+import com.phosfe.bkmtechpos.host.IsoExchange
+import com.phosfe.bkmtechpos.protocol.IsoMessage
+import com.phosfe.bkmtechpos.storage.DurableDeliveryQueue
+import com.phosfe.bkmtechpos.storage.PendingDelivery
+
+enum class AdviceDispatchResult { NOTHING_PENDING, COMPLETED, HOST_REJECTED, SKIPPED_NON_ADVICE }
+
+/** Delivers one durable offline/TC advice and leaves transport failures retryable. */
+class AdviceDispatcher(
+    private val queue: DurableDeliveryQueue,
+    private val exchange: IsoExchange
+) {
+    fun dispatchOnce(): AdviceDispatchResult {
+        val pending = queue.next() ?: return AdviceDispatchResult.NOTHING_PENDING
+        if (pending.kind !in setOf("OFFLINE_ADVICE", "TC_ADVICE")) return AdviceDispatchResult.SKIPPED_NON_ADVICE
+        val response = exchange.exchange(pending.request)
+        validate(pending.request, response)
+        val code = response.text(39) ?: error("Advice response has no F39")
+        return if (code == "00") {
+            queue.acknowledge(pending.id, code, response.text(37))
+            AdviceDispatchResult.COMPLETED
+        } else {
+            queue.retry(pending.id, ADVICE_RETRY_MS, code)
+            AdviceDispatchResult.HOST_REJECTED
+        }
+    }
+
+    private fun validate(request: IsoMessage, response: IsoMessage) {
+        require(request.messageType == "0220") { "Advice request MTI mismatch" }
+        require(response.messageType == "0230") { "Advice response MTI mismatch" }
+        require(response.text(3) == request.text(3)) { "Advice processing code mismatch" }
+        require(response.text(11) == request.text(11)) { "Advice STAN mismatch" }
+    }
+
+    private companion object { const val ADVICE_RETRY_MS = 60_000L }
+}
