@@ -43,6 +43,11 @@ class SettlementProtocolTest {
         val processingCodes = mutableListOf<String>()
         val exchange = IsoExchange { request ->
             processingCodes += request.text(3)!!
+            if (request.messageType == "0320") {
+                assertEquals("000001", request.text(11))
+                assertEquals("120000", request.text(12))
+                assertEquals("0912", request.text(13))
+            }
             when (request.messageType) {
                 "0500" -> settlementReply(request, if (request.text(3) == "910000") "95" else "00")
                 "0320" -> batchReply(request)
@@ -106,4 +111,3 @@ class SettlementProtocolTest {
         override fun clear(expectedId: String) = error("not used")
     }
 }
-
