@@ -132,14 +132,15 @@ class BatchUploadRequestFactory(
     fun create(transaction: ApprovedBatchTransaction): IsoMessage {
         val original = transaction.authorizationRequest
         val reply = transaction.authorizationResponse
-        val moment = clock.now()
         val fields = linkedMapOf<Int, ByteArray>()
         fields[2] = transaction.pan.ascii()
         fields[3] = original.required(3)
         fields[4] = original.required(4)
-        fields[11] = stan.next().ascii()
-        fields[12] = moment.time.ascii()
-        fields[13] = moment.date.ascii()
+        // BKM batch upload replays the original authorization trace/time/date; generating a
+        // fresh STAN here breaks correlation with the host's original approval.
+        fields[11] = original.required(11)
+        fields[12] = original.required(12)
+        fields[13] = original.required(13)
         original.fields[14]?.let { fields[14] = it.copyOf() }
         listOf(22, 25, 41, 42, 43, 49, 63).forEach { fields[it] = original.required(it) }
         original.fields[32]?.let { fields[32] = it.copyOf() }
@@ -163,4 +164,3 @@ private fun IsoMessage.required(number: Int): ByteArray =
     fields[number]?.copyOf() ?: error("Required F$number is missing")
 
 private fun String.ascii(): ByteArray = toByteArray(Charsets.US_ASCII)
-
